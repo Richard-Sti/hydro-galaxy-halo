@@ -7,8 +7,9 @@ from joblib import Parallel, delayed
 # import warnings
 NTHREADS = 28
 
-halos = np.load("../data/halos_00761.npy")
-gals = np.load("../data/gals_00761761.npy")
+
+halos = np.load("/mnt/zfsusers/rstiskalek/hydro/data/halos_00761.npy")
+gals = np.load("/mnt/zfsusers/rstiskalek/hydro/data/gals_00761761.npy")
 Rvir = halos['rs'] * halos['concentration'] * 1e-3  # in Mpc
 
 
@@ -29,38 +30,15 @@ def find_match(i):
     return IDS[np.argmax(gals['MS'][IDS])]
 
 
-def find_potential(i):
-    """Finds the potential due to the 20 closest halos."""
-    dx = np.array([halos[p] - halos[p][i] for p in ('x', 'y', 'z')]).T
-    separation = np.linalg.norm(dx, axis=-1)
-
-    mask = np.argsort(separation)[1:21]
-    potential = halos['Mvir'][mask] / separation[mask]
-    return np.sum(potential)
-#    mask = separation < 10 * halos[i]['Rvir']
-#    with warnings.catch_warnings():
-#        msg = "divide by zero encountered in true_divide"
-#        warnings.filterwarnings("ignore", message=msg)
-#        potential = halos['Mvir'][mask] / separation[mask]
-#    if potential.size == 1:
-#        return 0.
-#    return np.sum(potential[np.isfinite(potential)])
-
-
 print("Matching galaxies to halos.")
 out = Parallel(n_jobs=NTHREADS)(delayed(find_match)(i)
                                 for i in range(halos.size))
-print("Finding potential.")
-potential = Parallel(n_jobs=NTHREADS)(delayed(find_potential)(i)
-                                      for i in range(halos.size))
-
 
 names = ['x', 'y', 'z', 'logMvir', 'rs', 'rho0', 'concentration', 'Reff',
-         'logMS', 'log_potential']
+         'logMS', 'Rvir']
 N = np.isfinite(out).sum()
 catalog = np.zeros(N, dtype={'names': names,
                              'formats': ['float64'] * len(names)})
-
 
 k = 0
 for i, j in enumerate(out):
@@ -70,13 +48,17 @@ for i, j in enumerate(out):
     catalog['x'][k] = halos['x'][i]
     catalog['y'][k] = halos['y'][i]
     catalog['z'][k] = halos['z'][i]
-    catalog['log_potential'][k] = np.log10(potential[i])
     catalog['logMvir'][k] = np.log10(halos['Mvir'][i])
     catalog['rs'][k] = halos['rs'][i]
     catalog['concentration'][k] = halos['concentration'][i]
     catalog['rho0'][k] = halos['rho0'][i]
-    catalog['Reff'][k] = gals['Reff'][j]
+    catalog['Rvir'][k] = (halos['rs'] * halos['concentration'])[i]
+    catalog['Reff'][k] = gals['Reff'][j] * 1000  # in kpc
     catalog['logMS'][k] = np.log10(gals['MS'][j])
     k += 1
 
-np.save('../data/HAGN_matched_catalog.npy', catalog)
+# Eliminate halos with suspiciously high concentration
+catalog = catalog[catalog['concentration'] < 300]
+
+np.save('/mnt/zfsusers/rstiskalek/hydro/data/HAGN_matched_catalog.npy',
+        catalog)
