@@ -1,3 +1,20 @@
+# Copyright (C) 2021 Richard Stiskalek
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation; either version 3 of the License, or (at your
+# option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+# Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+"""Calculates the learning and validation curves for some model."""
+
 import numpy as np
 
 from frame import Frame
@@ -37,18 +54,18 @@ frame = Frame(features, target, subhalos=2, test_size=0.01)
 #           'n_iter_no_change': 50,
 #           'validation_fraction': 0.2}
 # model = MLPRegressor(**params)
-# 
+#
 # train_sizes = np.linspace(0.01, 1.0, 100)
 # __, train_score, valid_score, times, __ = learning_curve(
 #         model, frame.X_train, frame.y_train, train_sizes=train_sizes, cv=5,
 #         scoring='neg_mean_absolute_error', return_times=True, n_jobs=n_jobs)
-# 
+#
 # conv = 1.4475125487928078  # A rough conversion factor to invert the scaling
 # learn_res = {'train_sizes': train_sizes,
 #              'train_score': train_score / conv,
 #              'valid_score': valid_score / conv,
 #              'times': times}
-# 
+#
 # dump(learn_res, '../data/learn_curve.p')
 
 
