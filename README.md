@@ -1,2 +1,2 @@
-# Hydro galaxy-halo relation
-Studies of the galaxy-halo relation in hydrodynamical simulations
+# Galaxy-halo connection: feature importance analysis
+
