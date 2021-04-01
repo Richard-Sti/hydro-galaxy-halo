@@ -85,7 +85,7 @@ class DataFrameSelector(BaseEstimator, TransformerMixin):
         attributes = self._enforce_list_str(attributes, 'log_attribute')
         # Check that each attribute is in `attributes`
         for attr in attributes:
-            if not attr in self.attributes:
+            if attr not in self.attributes:
                 raise ValueError("Log attribute '{}' not found in attributes"
                                  .format(attr))
         self._log_attributes = attributes
@@ -158,7 +158,6 @@ class UnionPipeline:
                              "fitted first.")
         return self._attributes
 
-
     def _prepare_pipeline_transform(self, X, pipeline, names):
         """
         Support function that extracts `pipeline` specific columns from `X`
@@ -170,8 +169,8 @@ class UnionPipeline:
         attributes = pipeline.steps[0][1].attributes
         # Create the structured array that will be given to the pipeline
         out = numpy.zeros(X.shape[0],
-                       dtype={'names': attributes,
-                              'formats': ['float64'] * len(attributes)})
+                          dtype={'names': attributes,
+                                 'formats': ['float64'] * len(attributes)})
         # Pop the pipeline's attributes from the name list
         for attr in attributes:
             if attr not in names:
@@ -180,7 +179,6 @@ class UnionPipeline:
             names.remove(attr)
             out[attr] = X[attr]
         return out
-
 
     def fit_transform(self, X):
         """
@@ -205,7 +203,6 @@ class UnionPipeline:
             raise ValueError("Features {} were not fitted and transformed."
                              .format(names))
         return numpy.hstack(out)
-
 
     def transform(self, X):
         """
@@ -342,7 +339,7 @@ def stratify_split(data, features, target, log_target, test_size=0.2, seed=42,
 
     # Unpack the data into smaller structured arrays
     X = numpy.zeros(axis.size, dtype={'names': features,
-                                   'formats': ['float64'] * len(features)})
+                                      'formats': ['float64'] * len(features)})
     for feat in features:
         X[feat] = data[feat]
 
