@@ -14,3 +14,5 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 from .preprocess import (UnionPipeline, DataFrameSelector, stratify_split)
+
+from .regressors import SklearnModelRegressor
