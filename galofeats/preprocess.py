@@ -18,6 +18,7 @@
 import numpy
 from sklearn.base import (BaseEstimator, TransformerMixin)
 from sklearn.model_selection import StratifiedShuffleSplit
+from sklearn.pipeline import Pipeline
 
 
 class DataFrameSelector(BaseEstimator, TransformerMixin):
@@ -46,7 +47,7 @@ class DataFrameSelector(BaseEstimator, TransformerMixin):
     def _enforce_list_str(strings, name):
         """A support function to ensure `strings` is a list of strings."""
         if isinstance(strings, tuple):
-            attributes = list(strings)
+            strings = list(strings)
         if not isinstance(strings, (list, str)):
             raise ValueError("'{}' must be a list or a single string"
                              .format(name))
@@ -191,6 +192,8 @@ class UnionPipeline:
         """
         names = list(X.dtype.names)
         out = [None] * len(self.pipelines)
+        # Reset the attributes placeholder
+        self._attributes = []
 
         for i, pipeline in enumerate(self.pipelines):
             arr = self._prepare_pipeline_transform(X, pipeline, names)
