@@ -207,7 +207,6 @@ class SklearnRegressor(BaseRegressor):
         self.feature_pipeline = feature_pipeline
         self.target_pipeline = target_pipeline
 
-
         # Add support for weights on this level ?
 
     @property
@@ -227,7 +226,6 @@ class SklearnRegressor(BaseRegressor):
         if self._grid is None:
             raise ValueError("'grid' is not set.")
         return self._grid
-
 
     def fit(self, **kwargs):
         """
@@ -257,7 +255,6 @@ class SklearnRegressor(BaseRegressor):
                 self.model.fit(X, y, kwargs)
         self._is_fitted = True
 
-
     def predict(self, X=None):
         """
         Predicts the target values using the grid's best estimator or the
@@ -286,7 +283,6 @@ class SklearnRegressor(BaseRegressor):
         if y.ndim == 1:
             y = y.reshape(-1, 1)
         return self.target_pipeline.inverse_transform(y)
-
 
     def score(self, **kwargs):
         """
@@ -449,10 +445,10 @@ class SklearnRegressor(BaseRegressor):
         X = self.feature_pipeline.transform(self.X_train)
         y = self.target_pipeline.transform(self.y_train)
         # Calculate the learning curve
-        curve = learning_curve(self.model, X, y, train_sizes=train_sizes, cv=cv,
-                               scoring=scoring, n_jobs=n_jobs, shuffle=True,
-                               random_state=seed, return_times=True,
-                               fit_params=kwargs)
+        curve = learning_curve(self.model, X, y, train_sizes=train_sizes,
+                               cv=cv, scoring=scoring, n_jobs=n_jobs,
+                               shuffle=True, random_state=seed,
+                               return_times=True, fit_params=kwargs)
         # Unpack the curve's output
         keys = ['train_sizes', 'train_scores', 'test_scores', 'fit_times',
                 'score_times']
