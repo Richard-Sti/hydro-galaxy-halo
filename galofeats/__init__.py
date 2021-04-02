@@ -15,4 +15,4 @@
 
 from .preprocess import (UnionPipeline, DataFrameSelector, stratify_split)
 
-from .regressors import SklearnModelRegressor
+from .regressors import SklearnRegressor

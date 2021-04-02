@@ -154,10 +154,14 @@ class UnionPipeline:
     @property
     def attributes(self):
         """Attributes handled by this union pipeline."""
-        if self._attributes is None:
-            raise ValueError("'attributes' not set. The pipeline must be "
-                             "fitted first.")
-        return self._attributes
+        attributes = []
+
+        for i, pipeline in enumerate(self.pipelines):
+            for attr in pipeline.steps[0][1].attributes:
+                attributes.append(attr)
+        if len(attributes) != len(set(attributes)):
+            raise ValueError("Duplicate attributes detected.")
+        return attributes
 
     def _prepare_pipeline_transform(self, X, pipeline, names):
         """
@@ -272,9 +276,9 @@ def stratify_split(data, features, target, log_target, test_size=0.2, seed=42,
         Input structured data array that contains both the features and
         target variable.
     features : list of str
-        Attributes that will
+        Feature attributes.
     target : str
-        Target attribute
+        Target attribute.
     log_target : bool
         Whether to log-transform the target axis before performing the
         stratified split.
