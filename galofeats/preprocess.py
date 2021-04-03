@@ -24,7 +24,8 @@ from sklearn.pipeline import Pipeline
 class DataFrameSelector(BaseEstimator, TransformerMixin):
     """
     A simple class to convert data from a numpy structured array into a
-    sklearn-friendly format.
+    sklearn-friendly format. This selector must be the first step of
+    a Pipeline.
 
     Optionally applies :math:`\log_{10}` to the specified attributes.
 
@@ -193,6 +194,11 @@ class UnionPipeline:
         ----------
         X : numpy.ndarray with named fields
             Data to be transformed. Must have a specified pipeline.
+
+        Returns
+        -------
+        result : numpy.ndarray of shape (Nlabels, Nfeatures)
+            Transformed features.
         """
         names = list(X.dtype.names)
         out = [None] * len(self.pipelines)
@@ -219,6 +225,11 @@ class UnionPipeline:
         ----------
         X : numpy.ndarray with named fields
             Data to be transformed. Must have a specified pipeline.
+
+        Returns
+        -------
+        result : numpy.ndarray of shape (Nlabels, Nfeatures)
+            Transformed features.
         """
         names = list(X.dtype.names)
         out = [None] * len(self.pipelines)
@@ -235,6 +246,11 @@ class UnionPipeline:
         """
         Inverse transforms the data. Returns a numpy structured array
         with the original data.
+
+        Returns
+        -------
+        result : numpy.ndarray with named fields
+            Inverse transformed features.
         """
         out = numpy.zeros(
                 X.shape[0],
@@ -272,7 +288,7 @@ def stratify_split(data, features, target, log_target, test_size=0.2, seed=42,
 
     Parameters
     ----------
-    data : numpy.ndarray with named field
+    data : numpy.ndarray with named fields
         Input structured data array that contains both the features and
         target variable.
     features : list of str
@@ -297,13 +313,13 @@ def stratify_split(data, features, target, log_target, test_size=0.2, seed=42,
 
     Returns
     ------
-    X_train : numpy.ndarray
+    X_train : numpy.ndarray with named fields
         Train features.
-    X_test : numpy.ndarray
+    X_test : numpy.ndarray with named fields
         Test features.
-    y_train : numpy.ndarray
+    y_train : numpy.ndarray with named fields
         Train target.
-    y_test : numpy.ndarray
+    y_test : numpy.ndarray with named fields
         Test target.
     """
 
