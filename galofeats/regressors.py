@@ -13,20 +13,17 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-"""Pipeline for sklearn models"""
+"""Regressor class that provides an overlay to fit and inspect estimators."""
 
 from abc import (ABC, abstractmethod)
 
 import numpy
-
 from sklearn import metrics
 from sklearn.inspection import permutation_importance
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import learning_curve
 from sklearn.base import clone
-
 from joblib import (parallel_backend, Parallel, delayed)
-
 
 from .preprocess import UnionPipeline
 
@@ -236,6 +233,9 @@ class SklearnRegressor(BaseRegressor):
         ----------
             **kwargs :
                 Optional arguments passed into `self.model.fit`.
+        Returns
+        -------
+        None
         """
         X = self.feature_pipeline.fit_transform(self.X_train)
         y = self.target_pipeline.fit_transform(self.y_train)
@@ -267,6 +267,10 @@ class SklearnRegressor(BaseRegressor):
                 Optionally can predict target values for sets other than the
                 test set. Must have the same structure as `self.X_train`.
                 The regressor will automatically scale the data.
+        Returns
+        -------
+        result : numpy.ndarray with named fields
+            Predicted target variables for the test set or `X` if passed.
         """
         if X is not None:
             if not isinstance(X, numpy.ndarray):
@@ -294,6 +298,10 @@ class SklearnRegressor(BaseRegressor):
         ----------
             **kwargs :
                 Optional arguments passed into `sklearn.metrics` scorers.
+        Returns
+        -------
+        score : dict
+            Dictionary with keys: `R2`, `MAE`, and `explained_variance`.
         """
         # Calculate the predicted values
         X = self.feature_pipeline.transform(self.X_test)
@@ -441,6 +449,13 @@ class SklearnRegressor(BaseRegressor):
             Random state.
         **kwargs :
             Optional arguments passed into the fit method of the estimator.
+
+        Returns
+        -------
+        result : dict
+            A dictionary with keys `train_sizes`, `train_scores`,
+            `test_scores`, `fit_times`, `score_times`. Where applicable
+            the specific output is of shape (`len(train_sizes)`, `cv`).
         """
         X = self.feature_pipeline.transform(self.X_train)
         y = self.target_pipeline.transform(self.y_train)
