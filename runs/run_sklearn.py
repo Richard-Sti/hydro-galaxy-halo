@@ -14,138 +14,104 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 """Submission script."""
-
-
-from argparse import ArgumentParser
-
-from sklearn.linear_model import Ridge
+import numpy
+from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import ExtraTreesRegressor
 from sklearn.neural_network import MLPRegressor
+from sklearn import preprocessing
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import GridSearchCV
 
-from frame import Frame
-from sklearn_pipeline import RegressionModel
+import toml
 
-parser = ArgumentParser(description='Pipeline to test sklearn models.')
-parser.add_argument('--n_jobs', type=int, default=1, help='Number of jobs.')
-args = parser.parse_args()
+# Make galofeats pip installable at some point to avoid this
+import sys
+sys.path.append('../')
 
-models = {'ExtraTreesRegressor': ExtraTreesRegressor(),
-          'MLPRegressor': MLPRegressor(max_iter=5000, validation_fraction=0.2),
-          'Ridge': Ridge()}
-
-# Note that for random forests the 'mae' criterion is very slow
-grid = {'Ridge': {'alpha': [0.0, 0.1, 0.5, 1.0]},
-        'ExtraTreesRegressor': {'n_estimators': [256, 512, 1024],
-                                'max_depth': [16, 32, 64, None],
-                                'min_samples_split': [32, 64, 128, 256],
-                                'min_impurity_decrease': [0.0, 0.1],
-                                'max_leaf_nodes': [None]},
-        'MLPRegressor': {'hidden_layer_sizes': [(8,), (16,),
-                                                (16, 8, 4),
-                                                (32, 16, 8),
-                                                (32, 16, 8, 4),
-                                                (64, 32, 16),
-                                                (64, 32, 16, 8),
-                                                (128, 64, 32, 16, 8),
-                                                (256, 128, 64, 32, 16)],
-                         'activation': ['tanh'],
-                         'solver': ['adam'],
-                         'batch_size': [128, 'auto'],
-                         'alpha': [0.001, 0.01],
-                         'learning_rate': ['adaptive'],
-                         'early_stopping': [False]}}
-
-comb_features = {'Mvir': ['log10', 'standard'],
-                 'rho0': ['log10', 'standard'],
-                 'spin': ['log10', 'standard'],
-                 'potential': ['standard']}
-
-# halo_features = {'Mvir': ['log10', 'standard'],
-#                  'concentration': ['log10', 'standard'],
-#                  'gamma': ['standard'],
-#                  'spin': ['log10', 'standard'],
-#                  'potential': ['standard']}
-
-halo_features = {'Mvir': ['log10', 'standard'],
-                 'concentration': ['log10', 'standard'],
-                 'gamma': ['standard'],
-                 'spin': ['log10', 'standard'],
-                 'potential': ['standard'],
-                 'rvir': ['log10', 'standard'],
-                 'rho0': ['log10', 'standard'],
-                 'L': ['log10', 'standard'],
-                 'cvel': ['log10', 'standard'],
-                 'Eint': ['standard'],
-                 'Epot': ['log10', 'standard'],
-                 'Ekin': ['log10', 'standard'],
-                 'rs': ['log10', 'standard']}
-
-# halo_features = {'Mvir': ['log10', 'standard']}
-
-# halo_features = {'Mvir': ['log10', 'standard'],
-#                  'concentration': ['log10', 'standard']}
-
-# subhalo_features = {'Mvir': ['log10', 'standard']}
-
-# subhalo_features = {'Mvir': ['log10', 'standard'],
-#                     'Eint': ['standard'],
-#                     'rs': ['log10', 'standard'],
-#                     'rho0': ['log10', 'standard'],
-#                     'gamma': ['standard'],
-#                     'spin': ['log10', 'standard'],
-#                     'parent_Mvir': ['log10', 'standard'],
-#                     'potential': ['standard']}
-
-# subhalo_features = {'Mvir': ['log10', 'standard'],
-#                     'concentration': ['log10', 'standard']}
-
-# subhalo_features = {'Mvir': ['log10', 'standard'],
-#                     'concentration': ['log10', 'standard'],
-#                     'gamma': ['standard'],
-#                     'spin': ['log10', 'standard'],
-#                     'potential': ['standard']}
-
-subhalo_features = {'gamma': ['standard'],
-                    'spin': ['log10', 'standard'],
-                    'concentration': ['log10', 'standard'],
-                    'potential': ['standard'],
-                    'rho0': ['log10', 'standard']}
-
-# subhalo_features = {'Mvir': ['log10', 'standard'],
-#                     'concentration': ['log10', 'standard'],
-#                     'gamma': ['standard'],
-#                     'spin': ['log10', 'standard'],
-#                     'potential': ['standard'],
-#                     'rho0': ['log10', 'standard'],
-#                     'Eint': ['standard'],
-#                     'parent_Mvir': ['log10', 'standard'],
-#                     'parent_L': ['log10', 'standard'],
-#                     'L': ['log10', 'standard'],
-#                     'Ekin': ['log10', 'standard'],
-#                     'cvel': ['log10', 'standard'],
-#                     'Epot': ['log10', 'standard'],
-#                     'rs': ['log10', 'standard']}
-
-target = {'label': 'Reff', 'transforms': ['log10', 'standard']}
-search = 'grid'
-subhalos = 2
-n_iters = 10
-perm_repeats = 100
-seed = 42
-
-if subhalos == 0:
-    features = comb_features
-elif subhalos == 1:
-    features = halo_features
-elif subhalos == 2:
-    features = subhalo_features
+from galofeats import (UnionPipeline, DataFrameSelector, stratify_split,
+                       SklearnRegressor)
 
 
-for name in ['MLPRegressor', 'ExtraTreesRegressor']:
-    # Define the frame
-    frame = Frame(features, target, subhalos, seed=seed)
+models = {'ExtraTreesRegressor': ExtraTreesRegressor,
+          'MLPRegressor': MLPRegressor,
+          'LinearRegression': LinearRegression}
 
-    model = RegressionModel(models[name], name, grid[name], frame,
-                            search=search, n_iters=n_iters, n_jobs=args.n_jobs,
-                            seed=seed, perm_repeats=perm_repeats, verbose=2)
-    model.evaluate()
+scalers = {'MinMaxScaler': preprocessing.MinMaxScaler,
+           'QuantileTransformer': preprocessing.QuantileTransformer,
+           'RobustScaler': preprocessing.RobustScaler,
+           'StandardScaler': preprocessing.StandardScaler}
+
+class ConfigParser:
+    """Add documentantion. Especially since may have to reuse this."""
+
+
+    def __init__(self, path):
+        self.cnf = toml.load(path)
+
+    @property
+    def grid(self):
+        est_cnf = self.cnf['Estimator']
+        estimator = models[est_cnf['model']](**est_cnf['params'])
+        return GridSearchCV(estimator, **self.cnf['Grid'])
+
+    def _pipeline(self, kind):
+        data = self.cnf['Data'][kind]
+        pipe = [None] * len(data)
+        for i, (key, value) in enumerate(data.items()):
+            print(value)
+            scaler = scalers[value['scaler']](**value['kwargs'])
+            if value['log']:
+                pipe[i] = Pipeline([('selector', DataFrameSelector(key, key)),
+                                    ('scaler', scaler)])
+            else:
+                pipe[i] = Pipeline([('selector', DataFrameSelector(key)),
+                                    ('scaler', scaler)])
+        return UnionPipeline(pipe)
+
+    @property
+    def feature_pipeline(self):
+        return self._pipeline('features')
+
+    @property
+    def target_pipeline(self):
+        return self._pipeline('target')
+
+    @property
+    def data(self):
+        data = numpy.load(self.cnf['Data']['split']['path'])
+        features = self.feature_pipeline.attributes
+        target = self.target_pipeline.attributes
+        if len(target) != 1:
+            raise ValueError("Only a single target supported")
+        target = target[0]
+        kwargs = self.cnf['Data']['split']['kwargs']
+        kwargs.update({'seed': self.cnf['Main']['seed']})
+        return stratify_split(data, features, target, **kwargs)
+
+
+def run_regressor():
+    # And decide what to save
+    pass
+    # Args to specify the config file
+
+    # Fit the model, calculate permutation importance, feature importance,
+    # possibly the learning curve and dump the results in a meaningful way.
+
+    # Under what name to save this? Save the config file, scores and grid cv
+
+
+
+
+
+
+def main():
+    cnf = ConfigParser('config.toml')
+    regressor = SklearnRegressor(cnf.grid, *cnf.data, cnf.feature_pipeline,
+                                 cnf.target_pipeline)
+    regressor.fit()
+    print(regressor.score())
+
+    print(regressor)
+
+if __name__ == "__main__":
+    main()
