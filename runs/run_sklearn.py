@@ -13,18 +13,23 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-"""Submission script."""
+"""A submission script for sklearn regressors."""
+
 import sys
+import os
+import toml
+import argparse
 
 import numpy
+import matplotlib.pyplot as plt
+
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import ExtraTreesRegressor
 from sklearn.neural_network import MLPRegressor
 from sklearn import preprocessing
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import GridSearchCV
-
-import toml
+from joblib import dump
 
 # Make galofeats pip installable at some point to avoid this
 sys.path.append('../')
@@ -32,13 +37,14 @@ sys.path.append('../')
 from galofeats import (UnionPipeline, DataFrameSelector, stratify_split,
                        SklearnRegressor)
 
+
 # Dictionary of models to allow quick initialisation by key
-models = {'ExtraTreesRegressor': ExtraTreesRegressor,
+MODELS = {'ExtraTreesRegressor': ExtraTreesRegressor,
           'MLPRegressor': MLPRegressor,
           'LinearRegression': LinearRegression}
 
 # Dictionary of scalers to allow quick initialisation by key
-scalers = {'MinMaxScaler': preprocessing.MinMaxScaler,
+SCALERS = {'MinMaxScaler': preprocessing.MinMaxScaler,
            'QuantileTransformer': preprocessing.QuantileTransformer,
            'RobustScaler': preprocessing.RobustScaler,
            'StandardScaler': preprocessing.StandardScaler}
@@ -72,7 +78,7 @@ class ConfigParser:
         grid : sklearn hyperparameter grid object
         """
         est_cnf = self.cnf['Estimator']
-        estimator = models[est_cnf['model']](**est_cnf['params'])
+        estimator = MODELS[est_cnf['model']](**est_cnf['params'])
         kwargs = self.cnf['Grid']
         kwargs.update({'n_jobs': self.cnf['Main']['n_jobs']})
         return GridSearchCV(estimator, **kwargs)
@@ -100,7 +106,7 @@ class ConfigParser:
                 kwargs = value['kwargs']
             except KeyError:
                 kwargs = {}
-            scaler = scalers[value['scaler']](**kwargs)
+            scaler = SCALERS[value['scaler']](**kwargs)
             # whether to logarithm transform this value
             try:
                 to_log = value['log']
@@ -153,12 +159,47 @@ class ConfigParser:
 
 
 class SubmissionModel:
+    """
+    A quick and dirty submission script that summarises the model, and the
+    fitting results in .txt files and also scatter plots the predicted target
+    variables.
+
+    Parameters
+    ----------
+    regressor : `galofeats.SklearnRegressor` object
+
+    cnf : `ConfigParser` object
+    """
 
     def __init__(self, regressor, cnf):
         self.regressor = regressor
         self.cnf = cnf
+        # Enforce correct ending of the file path
+        path = self.cnf.cnf['Main']['folder']
+        if not path.endswith('/'):
+            path += '/'
+        self.path = path
+        # Setup the output folder
+        self.setup_folder()
+
+    def setup_folder(self):
+        """
+        Prepares the output folder. The folder is created or, if already
+        in existence, all '.txt', '.p', and '.png' files are removed.
+        """
+        if os.path.exists(self.path):
+            files = os.listdir(self.path)
+            extensions = ['.txt', '.p', '.png']
+            for item in files:
+                for ext in extensions:
+                    if item.endswith(ext):
+                        os.remove(self.path + item)
+                        continue
+        else:
+            os.mkdir(self.path)
 
     def print_model_summary(self):
+        """Prints summary of this model - the data and hyperparameters."""
         print("Grid:")
         print("-"*79)
         print(self.regressor.grid)
@@ -171,6 +212,11 @@ class SubmissionModel:
         for key, value in kwargs.items():
             print('{}: {}'.format(key, value))
         print()
+
+        # Data
+        print("Data:")
+        print("-"*79)
+        print(self.cnf.cnf['Data']['path'])
 
         # Features summary
         print("Features:")
@@ -217,14 +263,16 @@ class SubmissionModel:
         print()
 
     def importance_kwargs(self, kind):
+        """Parses regressor sub-dictionaries and appends seed and n_jobs."""
         main = self.cnf.cnf['Main']
         kwargs = self.cnf.cnf['Regressor'][kind]
-
+        # Append the seed and n_jobs
         kwargs.update({'seed': main['seed'],
                        'n_jobs': main['n_jobs']})
         return kwargs
 
     def print_fit_summary(self, scores, perm, feat_imp, learning_curve):
+        """Prints results of the fitting."""
         # Best model
         print("Best estimator:")
         print("-"*79)
@@ -238,11 +286,21 @@ class SubmissionModel:
             print('{}: {:.4f}'.format(key, value))
         # Get the real inverted score and return dex
         target = self.regressor.target_pipeline.attributes[0]
-        ytest = numpy.log10(self.regressor.y_test[target])
-        ypred = numpy.log10(self.regressor.predict()[target])
+        ytest = self.regressor.y_test[target]
+        ypred = self.regressor.predict()[target]
+        try:
+            log_target = self.cnf.cnf['Data']['target'][target]['log']
+            kind = 'dex'
+        except KeyError:
+            log_target = False
+            kind = ''
+        if log_target:
+            ypred = numpy.log10(ypred)
+            ytest = numpy.log10(ytest)
         dy = numpy.abs(ytest - ypred)
-        print("Inverted MAE: {:.4f} +- {:.4f} dex".format(numpy.mean(dy),
-                                                          numpy.std(dy)))
+
+        print("Inverted MAE: {:.4f} +- {:.4f} {}"
+              .format(numpy.mean(dy), numpy.std(dy), kind))
         print()
 
         features = self.regressor.feature_pipeline.attributes
@@ -263,6 +321,7 @@ class SubmissionModel:
                       .format(features[i], feat_imp[i, 0],
                               feat_imp[i, 1]))
             print()
+
         # Learning curve 
         if learning_curve is not None:
             print("Learning curve:")
@@ -274,48 +333,103 @@ class SubmissionModel:
 
             print()
 
+    def plot_scatter(self):
+        """
+        Makes a 2-row scatter plot for each feature. The top figure is a
+        scatter plot of predicted and true target vs feature, calculated
+        on the test set, and the bottom figure shows the residuals.
+        """
+        X = self.regressor.X_test
+        y_pred = self.regressor.predict()
+        y_test = self.regressor.y_test
+
+        target = y_test.dtype.names[0]
+        try:
+            log_target = self.cnf.cnf['Data']['target'][target]['log']
+        except KeyError:
+            log_target = False
+        if log_target:
+            y_pred[target] = numpy.log10(y_pred[target])
+            y_test[target] = numpy.log10(y_test[target])
+
+        for attr in X.dtype.names:
+            try:
+                log_target = self.cnf.cnf['Data']['features'][attr]['log']
+                if log_target:
+                    X[attr] = numpy.log10(X[attr])
+            except KeyError:
+                log_target = False
+
+            # Make the figure
+            fig, axes = plt.subplots(nrows=2, ncols=1, sharex=True)
+            fig.subplots_adjust(hspace=0)
+            axes[0].scatter(X[attr], y_test[target], s=3, label='Test set')
+            axes[0].scatter(X[attr], y_pred[target], s=3, label='Predicted',
+                            alpha=0.5)
+            axes[0].legend()
+
+            axes[1].scatter(X[attr], y_pred[target] - y_test[target], s=3)
+            if log_target:
+                axes[1].set_ylabel('Residuals (dex)')
+            else:
+                axes[1].set_ylabel('Residuals ({})'.format(attr))
+            axes[1].axhline(0, c='orange', ls='--')
+
+            axes[0].set_ylabel(target)
+            axes[1].set_xlabel(attr)
+            fig.savefig(self.path + '{}.png'.format(attr))
+            plt.close(fig)
+
     def run(self):
+        """
+        One button to run them all. The summarises the models, fits it,
+        and inspects it and generates the appropriate summarising files.
+        """
+        # Save the system buffer
         stdout0= sys.stdout
         # Print model summary to a txt file
-        with open('parameters.txt', 'w') as f:
+        with open(self.path + 'parameters.txt', 'w') as f:
             sys.stdout = f
             self.print_model_summary()
             sys.stdout = stdout0
-
+        # Do the heavy work
         self.regressor.fit()
-
         scores = self.regressor.score()
-        perm_kwargs = self.importance_kwargs('permutation_importance')
-        perm = self.regressor.permutation_importance(**perm_kwargs)
-
-        feat_imp_kwargs = self.importance_kwargs('feature_importance')
-        feat_imp = self.regressor.feature_importance(**feat_imp_kwargs)
-
-        learning_curve_kwargs = self.importance_kwargs('learning_curve')
-        make_curve = learning_curve_kwargs.pop('to_calculate')
+        # Permutation importance
+        kwargs0 = self.importance_kwargs('permutation_importance')
+        perm = self.regressor.permutation_importance(**kwargs0)
+        # Feature importance for ensemble models
+        kwargs1 = self.importance_kwargs('feature_importance')
+        feat_imp = self.regressor.feature_importance(**kwargs1)
+        # Learning curve (optional)
+        kwargs2 = self.importance_kwargs('learning_curve')
+        make_curve = kwargs2.pop('to_calculate')
         if make_curve:
-            learning_curve = self.regressor.learning_curve(
-                    **learning_curve_kwargs)
+            learning_curve = self.regressor.learning_curve(**kwargs2)
         else:
             learning_curve = None
-
         # Print model results to a txt file
-        with open('results.txt', 'w') as f:
+        with open(self.path + 'results.txt', 'w') as f:
             sys.stdout = f
             self.print_fit_summary(scores, perm, feat_imp, learning_curve)
             sys.stdout = stdout0
 
-# Add a specific name to the runs
-# Now create a folder where to save the files
-# Make some plots
+        # Make the scatter plots
+        self.plot_scatter()
+        # At last, save the fitted grid
+        dump(self.regressor.grid, self.path + 'grid.p')
 
 
 def main():
-    cnf = ConfigParser('config.toml')
+    plt.switch_backend('agg')
+    parser = argparse.ArgumentParser(description='Regressor submitter.')
+    parser.add_argument('--path', type=str, help='Config file path.')
+    args = parser.parse_args()
+
+    cnf = ConfigParser(args.path)
     regressor = SklearnRegressor(cnf.grid, *cnf.data, cnf.feature_pipeline,
                                  cnf.target_pipeline)
     model = SubmissionModel(regressor, cnf)
-
     model.run()
 
 

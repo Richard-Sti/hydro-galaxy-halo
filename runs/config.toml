@@ -1,32 +1,48 @@
+# Example configuration script
 [Main]
 seed = 42
-n_jobs = 1
+n_jobs = 2
+folder = "../results/Linear"
 
+# ---------------------------------------------------------------------------#
 [Estimator]
 model = "LinearRegression"
-params = {"fit_intercept" = false, "normalize" = true}
 
+[Estimator.params]
+fit_intercept = false
+normalize = true
+
+# ---------------------------------------------------------------------------#
 [Grid]
-param_grid = {"fit_intercept" = [true, false]}
 scoring = "r2"
 cv = 10
 verbose = 0
 
+[Grid.param_grid]
+fit_intercept = [true, false]
+
+# ---------------------------------------------------------------------------#
 [Data]
 path = "../data/matched.npy"
 
 [Data.features]
-# For each feature must specify "scaler". Optionally can specify
-# "log" (bool), whether to log-transform the feature, or kwargs (dict),
-# the optional arguments passed into the scaler.
-rho0 = {"scaler" = "StandardScaler", "log" = true}
-Mvir = {"scaler" = "StandardScaler", "log" = true}
-# spin = {"scaler" = "StandardScaler", "log" = true}
-# potential = {"scaler" = "StandardScaler"} 
-
+[Data.features.Mvir]
+scaler = "StandardScaler"
+log = true
+[Data.features.rho0]
+scaler = "StandardScaler"
+log = true
+[Data.features.spin]
+scaler = "StandardScaler"
+log = true
+[Data.features.potential]
+scaler = "StandardScaler"
+log = false
 
 [Data.target]
-MS = {"scaler" = "StandardScaler", "log" = true}
+[Data.target.MS]
+scaler = "StandardScaler"
+log = true
 
 [Data.split]
 [Data.split.kwargs]
@@ -36,6 +52,7 @@ Nbins = 10
 n_splits = 50
 ax_percentile = [+0.01, +0.99]
 
+# ---------------------------------------------------------------------------#
 [Regressor]
 [Regressor.permutation_importance]
 scoring = "r2"
@@ -43,11 +60,10 @@ n_repeats = 5
 
 
 [Regressor.feature_importance]
-n_repeats = 10
+n_repeats = 5
 
 [Regressor.learning_curve]
-to_calculate = true
+to_calculate = false
 train_sizes = [0.1, 0.25, 0.5, 0.75, 1.0]
 cv = 5
 scoring = "r2"
-
