@@ -20,7 +20,6 @@ from abc import (ABC, abstractmethod)
 import numpy
 from sklearn import metrics
 from sklearn.inspection import permutation_importance
-from sklearn.pipeline import Pipeline
 from sklearn.model_selection import learning_curve
 from sklearn.base import clone
 from joblib import (parallel_backend, Parallel, delayed)
@@ -151,7 +150,7 @@ class BaseRegressor(ABC):
         pass
 
     @abstractmethod
-    def predict(self, X_test):
+    def predict(self, X):
         """Predicts target values using the fitted model."""
         pass
 
@@ -389,7 +388,7 @@ class SklearnRegressor(BaseRegressor):
         if not self.is_fitted:
             raise RuntimeError("The grid or model must be fitted first.")
         try:
-            feat = self.model.feature_importances_
+            __ = self.model.feature_importances_
         except AttributeError:
             return None
 
@@ -421,8 +420,8 @@ class SklearnRegressor(BaseRegressor):
         model.fit(X, y, sample_weight=weight)
         return model.feature_importances_
 
-    def learning_curve(self, train_sizes=[0.1, 0.33, 0.66, 1.0], cv=None,
-                       scoring=None, n_jobs=1, seed=42, **kwargs):
+    def learning_curve(self, train_sizes=None, cv=None, scoring=None,
+                       n_jobs=1, seed=42, **kwargs):
         """
         Calculates the cross-validated learning curve on the training set
         using the best-scoring estimator.
@@ -457,6 +456,8 @@ class SklearnRegressor(BaseRegressor):
             `test_scores`, `fit_times`, `score_times`. Where applicable
             the specific output is of shape (`len(train_sizes)`, `cv`).
         """
+        if train_sizes is None:
+            train_sizes = [0.1, 0.33, 0.66, 1.0]
         X = self.feature_pipeline.transform(self.X_train)
         y = self.target_pipeline.transform(self.y_train)
         # Calculate the learning curve

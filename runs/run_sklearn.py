@@ -49,6 +49,7 @@ SCALERS = {'MinMaxScaler': preprocessing.MinMaxScaler,
            'RobustScaler': preprocessing.RobustScaler,
            'StandardScaler': preprocessing.StandardScaler}
 
+
 class ConfigParser:
     """
     Config parser tailored to `galofeats.SklearnRegressor` hyperparameter
@@ -322,7 +323,7 @@ class SubmissionModel:
                               feat_imp[i, 1]))
             print()
 
-        # Learning curve 
+        # Learning curve
         if learning_curve is not None:
             print("Learning curve:")
             print("-"*79)
@@ -386,7 +387,7 @@ class SubmissionModel:
         and inspects it and generates the appropriate summarising files.
         """
         # Save the system buffer
-        stdout0= sys.stdout
+        stdout0 = sys.stdout
         # Print model summary to a txt file
         with open(self.path + 'parameters.txt', 'w') as f:
             sys.stdout = f

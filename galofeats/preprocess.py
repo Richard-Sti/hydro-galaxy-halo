@@ -157,7 +157,7 @@ class UnionPipeline:
         """Attributes handled by this union pipeline."""
         attributes = []
 
-        for i, pipeline in enumerate(self.pipelines):
+        for pipeline in enumerate(self.pipelines):
             for attr in pipeline.steps[0][1].attributes:
                 attributes.append(attr)
         if len(attributes) != len(set(attributes)):
