@@ -164,7 +164,8 @@ class UnionPipeline:
             raise ValueError("Duplicate attributes detected.")
         return attributes
 
-    def _prepare_pipeline_transform(self, X, pipeline, names):
+    @staticmethod
+    def _prepare_pipeline_transform(X, pipeline, names):
         """
         Support function that extracts `pipeline` specific columns from `X`
         and removes the attribute names from `names`.
@@ -257,7 +258,7 @@ class UnionPipeline:
                 dtype={'names': self.attributes,
                        'formats': ['float64'] * len(self.attributes)})
         start = 0
-        for i, pipeline in enumerate(self.pipelines):
+        for pipeline in self.pipelines:
             attribs = pipeline.steps[0][1].attributes
 
             end = start + len(attribs)
@@ -348,6 +349,7 @@ def stratify_split(data, features, target, log_target, test_size=0.2, seed=42,
     for val in ax_percentile:
         if not 0.0 < val < 1.:
             raise ValueError("'ax_percentile' must be between 0 and 1.")
+
     # Enforce an increasing order
     if not ax_percentile[1] > ax_percentile[0]:
         ax_percentile = ax_percentile[::-1]
