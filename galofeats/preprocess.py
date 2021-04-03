@@ -24,7 +24,8 @@ from sklearn.pipeline import Pipeline
 class DataFrameSelector(BaseEstimator, TransformerMixin):
     """
     A simple class to convert data from a numpy structured array into a
-    sklearn-friendly format.
+    sklearn-friendly format. This selector must be the first step of
+    a Pipeline.
 
     Optionally applies :math:`\log_{10}` to the specified attributes.
 
@@ -154,12 +155,17 @@ class UnionPipeline:
     @property
     def attributes(self):
         """Attributes handled by this union pipeline."""
-        if self._attributes is None:
-            raise ValueError("'attributes' not set. The pipeline must be "
-                             "fitted first.")
-        return self._attributes
+        attributes = []
 
-    def _prepare_pipeline_transform(self, X, pipeline, names):
+        for i, pipeline in enumerate(self.pipelines):
+            for attr in pipeline.steps[0][1].attributes:
+                attributes.append(attr)
+        if len(attributes) != len(set(attributes)):
+            raise ValueError("Duplicate attributes detected.")
+        return attributes
+
+    @staticmethod
+    def _prepare_pipeline_transform(X, pipeline, names):
         """
         Support function that extracts `pipeline` specific columns from `X`
         and removes the attribute names from `names`.
@@ -189,6 +195,11 @@ class UnionPipeline:
         ----------
         X : numpy.ndarray with named fields
             Data to be transformed. Must have a specified pipeline.
+
+        Returns
+        -------
+        result : numpy.ndarray of shape (Nlabels, Nfeatures)
+            Transformed features.
         """
         names = list(X.dtype.names)
         out = [None] * len(self.pipelines)
@@ -215,6 +226,11 @@ class UnionPipeline:
         ----------
         X : numpy.ndarray with named fields
             Data to be transformed. Must have a specified pipeline.
+
+        Returns
+        -------
+        result : numpy.ndarray of shape (Nlabels, Nfeatures)
+            Transformed features.
         """
         names = list(X.dtype.names)
         out = [None] * len(self.pipelines)
@@ -231,13 +247,18 @@ class UnionPipeline:
         """
         Inverse transforms the data. Returns a numpy structured array
         with the original data.
+
+        Returns
+        -------
+        result : numpy.ndarray with named fields
+            Inverse transformed features.
         """
         out = numpy.zeros(
                 X.shape[0],
                 dtype={'names': self.attributes,
                        'formats': ['float64'] * len(self.attributes)})
         start = 0
-        for i, pipeline in enumerate(self.pipelines):
+        for pipeline in self.pipelines:
             attribs = pipeline.steps[0][1].attributes
 
             end = start + len(attribs)
@@ -268,13 +289,13 @@ def stratify_split(data, features, target, log_target, test_size=0.2, seed=42,
 
     Parameters
     ----------
-    data : numpy.ndarray with named field
+    data : numpy.ndarray with named fields
         Input structured data array that contains both the features and
         target variable.
     features : list of str
-        Attributes that will
+        Feature attributes.
     target : str
-        Target attribute
+        Target attribute.
     log_target : bool
         Whether to log-transform the target axis before performing the
         stratified split.
@@ -293,13 +314,13 @@ def stratify_split(data, features, target, log_target, test_size=0.2, seed=42,
 
     Returns
     ------
-    X_train : numpy.ndarray
+    X_train : numpy.ndarray with named fields
         Train features.
-    X_test : numpy.ndarray
+    X_test : numpy.ndarray with named fields
         Test features.
-    y_train : numpy.ndarray
+    y_train : numpy.ndarray with named fields
         Train target.
-    y_test : numpy.ndarray
+    y_test : numpy.ndarray with named fields
         Test target.
     """
 
@@ -328,6 +349,7 @@ def stratify_split(data, features, target, log_target, test_size=0.2, seed=42,
     for val in ax_percentile:
         if not 0.0 < val < 1.:
             raise ValueError("'ax_percentile' must be between 0 and 1.")
+
     # Enforce an increasing order
     if not ax_percentile[1] > ax_percentile[0]:
         ax_percentile = ax_percentile[::-1]
