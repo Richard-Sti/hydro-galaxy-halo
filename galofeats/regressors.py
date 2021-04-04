@@ -388,7 +388,7 @@ class SklearnRegressor(BaseRegressor):
         if not self.is_fitted:
             raise RuntimeError("The grid or model must be fitted first.")
         try:
-            __ = self.model.feature_importances_
+            self.model.feature_importances_
         except AttributeError:
             return None
 
