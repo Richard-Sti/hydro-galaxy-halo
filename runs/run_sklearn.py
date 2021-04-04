@@ -17,7 +17,6 @@
 
 import sys
 import os
-import toml
 import argparse
 
 import numpy
@@ -31,11 +30,9 @@ from sklearn.pipeline import Pipeline
 from sklearn.model_selection import GridSearchCV
 from joblib import dump
 
-# Make galofeats pip installable at some point to avoid this
-sys.path.append('../')
-
 from galofeats import (UnionPipeline, DataFrameSelector, stratify_split,
                        SklearnRegressor)
+import toml
 
 
 # Dictionary of models to allow quick initialisation by key
