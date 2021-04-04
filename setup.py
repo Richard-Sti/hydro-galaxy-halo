@@ -14,8 +14,7 @@ setup(
                       'scikit-learn',
                       'joblib',
                       'toml',
-                      'matplotlib'
-                     ],
+                      'matplotlib'],
 
     classifiers=[
         'Development Status :: 1 - Planning',
@@ -23,6 +22,5 @@ setup(
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
-    ],
+        'Programming Language :: Python :: 3.8',],
 )
