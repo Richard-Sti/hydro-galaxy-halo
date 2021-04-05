@@ -55,6 +55,7 @@ class ScatterEstimator:
         """Sets `x`."""
         if x.ndim != 1:
             raise ValueError("'x' must be a 1D numpy aray.")
+        self._x = x
 
     @property
     def y(self):
@@ -66,6 +67,7 @@ class ScatterEstimator:
         """Sets `y`."""
         if y.ndim != 1:
             raise ValueError("'y' must be a 1D numpy aray.")
+        self._y = y
 
     @property
     def half_dx(self):
@@ -138,7 +140,7 @@ class ScatterEstimator:
         ----------
         knots : numpy.ndarray (1D)
             Position along `x` where to estimate the scatter.
-         \**kwargs :
+         **kwargs :
              Optional keyword arguments passed into
              :py:func:`scipy.signal.savgol_filter` to smooth the output mean
              and scatter curves. By default, if no arguments are provided,
@@ -153,7 +155,7 @@ class ScatterEstimator:
         stats = [self.point_stats(knot) for knot in knots]
         # Turn the list of dictionaries into a numpy structured array
         attrs = [key for key in stats[0].keys()]
-        X = np.zeros(len(stats), dtype={'names': attrs,
+        X = numpy.zeros(len(stats), dtype={'names': attrs,
                                         'formats': ['float64']*len(attrs)})
         for i, stat in enumerate(stats):
             for key, value in stat.items():
