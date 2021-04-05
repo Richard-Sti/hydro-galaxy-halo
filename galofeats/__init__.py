@@ -16,3 +16,5 @@
 from .preprocess import (UnionPipeline, DataFrameSelector, stratify_split)
 
 from .regressors import SklearnRegressor
+
+from .scatter import ScatterEstimator
