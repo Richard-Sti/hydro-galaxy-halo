@@ -156,7 +156,7 @@ class ScatterEstimator:
         # Turn the list of dictionaries into a numpy structured array
         attrs = [key for key in stats[0].keys()]
         X = numpy.zeros(len(stats), dtype={'names': attrs,
-                                        'formats': ['float64']*len(attrs)})
+                                           'formats': ['float64']*len(attrs)})
         for i, stat in enumerate(stats):
             for key, value in stat.items():
                 X[i][key] = value
