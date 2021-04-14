@@ -274,7 +274,7 @@ class SklearnRegressor(BaseRegressor):
         if X is not None:
             if not isinstance(X, numpy.ndarray):
                 raise ValueError("'X' must be of numpy.ndarray type.")
-            if X.dtype.names != self.X_train.dtype:
+            if X.dtype.names != self.X_train.dtype.names:
                 raise ValueError("Named fields of 'X' do not match "
                                  "`self.X_train`.")
             X = self.feature_pipeline.transform(X)
